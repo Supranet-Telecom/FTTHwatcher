@@ -131,14 +131,17 @@ def load_densidades(conn, path: Path) -> None:
         pl.col("nivel").replace("", None),
     ]).select(["ano", "mes", "uf", "municipio", "ibge", "densidade", "nivel"])
 
+    rows = df.rows()
     with conn.cursor() as cur:
         cur.execute("TRUNCATE densidades")
-        with cur.copy(
-            "COPY densidades (ano, mes, uf, municipio, ibge, densidade, nivel)"
-            " FROM STDIN"
-        ) as copy:
-            for row in df.iter_rows():
-                copy.write_row(row)
+        cur.executemany(
+            """
+            INSERT INTO densidades (ano, mes, uf, municipio, ibge, densidade, nivel)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            ON CONFLICT DO NOTHING
+            """,
+            rows,
+        )
     conn.commit()
-    log.info("densidades — %d linhas carregadas.", len(df))
-    record_file_load(conn, path, len(df))
+    log.info("densidades — %d linhas carregadas.", len(rows))
+    record_file_load(conn, path, len(rows))

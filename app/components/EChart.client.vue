@@ -6,7 +6,7 @@
 import { ref, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { init, use } from 'echarts/core'
 import { CanvasRenderer } from 'echarts/renderers'
-import { LineChart } from 'echarts/charts'
+import { LineChart, BarChart } from 'echarts/charts'
 import {
   GridComponent,
   TooltipComponent,
@@ -18,6 +18,7 @@ import {
 use([
   CanvasRenderer,
   LineChart,
+  BarChart,
   GridComponent,
   TooltipComponent,
   TitleComponent,
@@ -43,7 +44,6 @@ onMounted(async () => {
   await nextTick()
   initChart()
   if (!chart && el.value) {
-    // Element may not have layout yet — wait for first resize
     ro = new ResizeObserver(() => {
       if (!chart) initChart()
       else chart.resize()

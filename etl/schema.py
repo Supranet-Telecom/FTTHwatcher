@@ -63,8 +63,9 @@ CREATE TABLE IF NOT EXISTS densidades (
     nivel     TEXT
 );
 
+DROP INDEX IF EXISTS densidades_uq;
 CREATE UNIQUE INDEX IF NOT EXISTS densidades_uq ON densidades (
-    ano, mes, COALESCE(ibge, 0)
+    ano, mes, COALESCE(uf, ''), COALESCE(ibge, 0)
 );
 """
 
