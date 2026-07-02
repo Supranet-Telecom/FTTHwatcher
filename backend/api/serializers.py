@@ -39,3 +39,11 @@ class AcessosPorUFSerializer(serializers.Serializer):
     mes = serializers.IntegerField()
     uf = serializers.CharField()
     acessos = serializers.IntegerField()
+
+
+class AcessosPorSegmentoSerializer(serializers.Serializer):
+    ano = serializers.IntegerField()
+    mes = serializers.IntegerField()
+    empresa = serializers.CharField(allow_null=True)
+    tipo_pessoa = serializers.CharField(allow_null=True)
+    acessos = serializers.IntegerField()

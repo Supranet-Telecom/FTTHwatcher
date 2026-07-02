@@ -55,6 +55,17 @@ DATABASES = {
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
+# Cache — Redis. Dados só mudam quando o ETL roda, então cacheamos agressivamente.
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        "LOCATION": os.environ.get("REDIS_URL", "redis://localhost:6379"),
+    }
+}
+
+# TTL do cache das respostas agregadas (7 dias). O ETL limpa o cache ao recarregar.
+AGGREGATE_CACHE_TTL = 60 * 60 * 24 * 7
+
 LANGUAGE_CODE = "pt-br"
 TIME_ZONE = "America/Sao_Paulo"
 USE_I18N = False

@@ -20,13 +20,25 @@ import sys
 from tqdm import tqdm
 from tqdm.contrib.logging import logging_redirect_tqdm
 
-from config import ANATEL_ZIP_URL, DOWNLOAD_ENABLED, RAW
+from config import ANATEL_ZIP_URL, DOWNLOAD_ENABLED, RAW, REDIS_URL
 from db import connect_with_retry
 from download import ensure_raw_data
 from loaders import discover_access_files, load_access_file, load_densidades, load_totais
 from schema import DDL_ETL_FILES, DDL_INDEXES, DDL_STAGING, DDL_TABLES
 
 log = logging.getLogger(__name__)
+
+
+def flush_cache() -> None:
+    """Limpa o cache do backend (Redis) para que os dados novos apareçam na hora."""
+    try:
+        import redis
+        client = redis.Redis.from_url(REDIS_URL)
+        client.flushdb()
+        log.info("Cache do backend (Redis) limpo.")
+    except Exception as exc:
+        # Falha ao limpar cache não deve derrubar o ETL — só logamos.
+        log.warning("Não foi possível limpar o cache do Redis: %s", exc)
 
 
 def main() -> None:
@@ -77,6 +89,8 @@ def main() -> None:
             cur.execute("DROP TABLE IF EXISTS _staging")
         conn.commit()
         conn.close()
+
+    flush_cache()
 
     if failed:
         log.error("%d arquivo(s) com falha: %s", len(failed), ", ".join(failed))

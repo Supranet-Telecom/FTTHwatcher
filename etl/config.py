@@ -20,6 +20,9 @@ ANATEL_ZIP_URL = os.getenv(
 # Define como "false" para pular o download automático (útil quando os arquivos já estão montados).
 DOWNLOAD_ENABLED = os.getenv("DOWNLOAD_DATA", "true").strip().lower() not in ("false", "0", "no")
 
+# Cache do backend — o ETL limpa após carregar dados novos para não servir dados velhos.
+REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379")
+
 # TCP keepalives evitam que a conexão seja encerrada silenciosamente pela
 # rede ou firewall durante execuções do ETL de várias horas.
 DSN = " ".join([

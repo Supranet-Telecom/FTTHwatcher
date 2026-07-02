@@ -68,7 +68,7 @@
       <UCard>
         <template #header>
           <div class="flex items-center justify-between">
-            <span class="font-semibold text-sm">Acessos — Banda Larga Fixa</span>
+            <span class="font-semibold text-sm">Acessos Por Empresa — Banda Larga Fixa</span>
             <UBadge color="neutral" variant="soft">top {{ totalGrupos }} grupos</UBadge>
           </div>
         </template>
@@ -87,6 +87,111 @@
         </template>
         <ChartContainer :pending="pendingEmpresas" :error="errorEmpresas">
           <EChart :option="chartParticipacao" />
+        </ChartContainer>
+      </UCard>
+
+      <!-- Card: Pressão Competitiva (placar da cidade) -->
+      <UCard>
+        <template #header>
+          <div class="flex items-center justify-between">
+            <span class="font-semibold text-sm">
+              Pressão Competitiva
+              <span class="text-muted font-normal">— {{ activeMunicipio || activeUf || 'Brasil' }}</span>
+            </span>
+            <UBadge v-if="pressao" color="neutral" variant="soft"> {{ pressao.mes }}</UBadge>
+          </div>
+        </template>
+
+        <div v-if="pendingEmpresas" class="flex items-center justify-center h-40">
+          <UIcon name="i-heroicons-arrow-path" class="animate-spin size-6 text-primary" />
+        </div>
+        <div v-else-if="!pressao" class="h-40 flex items-center justify-center text-muted text-sm">
+          Sem dados para este filtro.
+        </div>
+        <div v-else class="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div class="flex flex-col gap-1 p-4 rounded-lg bg-elevated/50">
+            <span class="text-xs text-muted">Concorrentes ativos</span>
+            <span class="text-2xl font-bold">{{ pressao.numConcorrentes }}</span>
+          </div>
+          <div class="flex flex-col gap-1 p-4 rounded-lg bg-elevated/50">
+            <span class="text-xs text-muted">Posição da Supranet</span>
+            <span class="text-2xl font-bold" :class="pressao.supraRank ? 'text-orange-500' : 'text-muted'">
+              {{ pressao.supraRank ? `${pressao.supraRank}º` : '—' }}
+            </span>
+          </div>
+          <div class="flex flex-col gap-1 p-4 rounded-lg bg-elevated/50">
+            <span class="text-xs text-muted">Share da Supranet</span>
+            <span class="text-2xl font-bold text-orange-500">
+              {{ pressao.supraShare != null ? `${pressao.supraShare.toFixed(1)}%` : '—' }}
+            </span>
+          </div>
+          <div class="flex flex-col gap-1 p-4 rounded-lg bg-elevated/50">
+            <span class="text-xs text-muted">Cresc. médio concorrentes</span>
+            <span class="text-2xl font-bold"
+                  :class="pressao.crescMedioConc == null ? 'text-muted'
+                          : pressao.crescMedioConc >= 0 ? 'text-green-500' : 'text-red-500'">
+              {{ pressao.crescMedioConc != null
+                 ? `${pressao.crescMedioConc >= 0 ? '+' : ''}${pressao.crescMedioConc.toFixed(1)}%`
+                 : '—' }}
+            </span>
+          </div>
+        </div>
+        <p v-if="pressao && pressao.supraCresc != null" class="mt-4 text-sm text-muted">
+          A Supranet cresceu
+          <span :class="pressao.supraCresc >= 0 ? 'text-green-500 font-semibold' : 'text-red-500 font-semibold'">
+            {{ pressao.supraCresc >= 0 ? '+' : '' }}{{ pressao.supraCresc.toFixed(1) }}%
+          </span>
+          no último mês vs.
+          <span :class="(pressao.crescMedioConc ?? 0) >= 0 ? 'text-green-500' : 'text-red-500'">
+            {{ (pressao.crescMedioConc ?? 0) >= 0 ? '+' : '' }}{{ (pressao.crescMedioConc ?? 0).toFixed(1) }}%
+          </span>
+          da média dos concorrentes.
+        </p>
+      </UCard>
+
+      <!-- Card: Crescimento mensal por empresa -->
+      <UCard>
+        <template #header>
+          <div class="flex items-center justify-between gap-3 flex-wrap">
+            <span class="font-semibold text-sm">Crescimento Mensal por Empresa</span>
+            <div class="flex items-center gap-3">
+              <UButtonGroup size="xs">
+                <UButton
+                  :variant="crescMode === 'pct' ? 'solid' : 'outline'"
+                  :color="crescMode === 'pct' ? 'primary' : 'neutral'"
+                  @click="crescMode = 'pct'"
+                >
+                  %
+                </UButton>
+                <UButton
+                  :variant="crescMode === 'abs' ? 'solid' : 'outline'"
+                  :color="crescMode === 'abs' ? 'primary' : 'neutral'"
+                  @click="crescMode = 'abs'"
+                >
+                  Nº de acessos
+                </UButton>
+              </UButtonGroup>
+              <UBadge v-if="crescInfo" color="neutral" variant="soft">
+                {{ crescInfo.de }} → {{ crescInfo.para }}
+              </UBadge>
+            </div>
+          </div>
+        </template>
+        <ChartContainer :pending="pendingEmpresas" :error="errorEmpresas">
+          <EChart :option="chartCrescimento" />
+        </ChartContainer>
+      </UCard>
+
+      <!-- Card: Segmento PF vs PJ -->
+      <UCard>
+        <template #header>
+          <div class="flex items-center justify-between">
+            <span class="font-semibold text-sm">Perfil de Clientes — PF vs PJ</span>
+            <UBadge v-if="segmentoInfo" color="neutral" variant="soft">{{ segmentoInfo }}</UBadge>
+          </div>
+        </template>
+        <ChartContainer :pending="pendingSegmento" :error="errorSegmento">
+          <EChart :option="chartSegmento" />
         </ChartContainer>
       </UCard>
 
@@ -123,7 +228,10 @@ const ANOS = ['2007','2010','2013','2015','2016','2017','2018','2019','2020','20
 interface Total { ano: number; mes: number; acessos: number }
 interface AcessoPorEmpresa { ano: number; mes: number; grupo_economico: string | null; acessos: number }
 interface AcessoPorTecnologia { ano: number; mes: number; tecnologia: string | null; acessos: number }
+interface AcessoPorSegmento { ano: number; mes: number; empresa: string | null; tipo_pessoa: string | null; acessos: number }
 interface PagedResponse<T> { count: number; next: string | null; previous: string | null; results: T[] }
+
+const SUPRANET = 'Supranet'
 
 // ---------------------------------------------------------------------------
 // Filtros — sincronizados com URL
@@ -377,6 +485,191 @@ const chartPorTecnologia = computed(() => {
 })
 
 // ---------------------------------------------------------------------------
+// Helper compartilhado: transforma a lista plana de porEmpresa em estrutura útil
+// ---------------------------------------------------------------------------
+function agrupaEmpresas(list: AcessoPorEmpresa[]) {
+  const periodosSet = new Set<string>()
+  const grupos = new Map<string, Map<string, number>>()
+  for (const row of list) {
+    const nome = row.grupo_economico ?? '(sem nome)'
+    const p = periodoLabel(row.ano, row.mes)
+    periodosSet.add(p)
+    if (!grupos.has(nome)) grupos.set(nome, new Map())
+    grupos.get(nome)!.set(p, (grupos.get(nome)!.get(p) ?? 0) + row.acessos)
+  }
+  return { periodos: [...periodosSet].sort(), grupos }
+}
+
+// ---------------------------------------------------------------------------
+// FEATURE 1 — Crescimento mensal (toggle entre % e nº absoluto de acessos)
+// ---------------------------------------------------------------------------
+// 'pct' = variação percentual | 'abs' = ganho/perda absoluto de acessos (net adds)
+const crescMode = ref<'pct' | 'abs'>('pct')
+
+const chartCrescimento = computed(() => {
+  const list = porEmpresa.value ?? []
+  if (list.length < 2) return buildBarChart([], [], {})
+
+  const { periodos, grupos } = agrupaEmpresas(list)
+  if (periodos.length < 2) return buildBarChart([], [], {})
+
+  const last = periodos.at(-1)!
+  const prev = periodos.at(-2)!
+
+  // Empresas ordenadas por tamanho no último mês (para pegar as relevantes)
+  const porTamanho = [...grupos.entries()]
+    .map(([nome, m]) => ({ nome, atual: m.get(last) ?? 0, anterior: m.get(prev) ?? 0 }))
+    .filter((e) => e.atual > 0 || e.anterior > 0)
+    .sort((a, b) => b.atual - a.atual)
+
+  const top = porTamanho.slice(0, 8)
+  if (!top.some((e) => e.nome === SUPRANET)) {
+    const s = porTamanho.find((e) => e.nome === SUPRANET)
+    if (s) { top.pop(); top.push(s) }
+  }
+
+  const isPct = crescMode.value === 'pct'
+
+  // pct: variação % (só quem tinha base); abs: ganho líquido de acessos
+  const comCresc = top.map((e) => ({
+    nome: e.nome,
+    valor: isPct
+      ? (e.anterior > 0 ? Math.round(((e.atual - e.anterior) / e.anterior) * 1000) / 10 : null)
+      : e.atual - e.anterior,
+  })).filter((e) => e.valor !== null) as { nome: string; valor: number }[]
+
+  // Ordena crescente para o maior aparecer no topo do gráfico horizontal
+  comCresc.sort((a, b) => a.valor - b.valor)
+
+  return buildBarChart(
+    comCresc.map((e) => e.nome),
+    comCresc.map((e) => e.valor),
+    {
+      suffix: isPct ? '%' : '',
+      integer: !isPct,
+      // verde se cresceu, vermelho se caiu; Supranet sempre laranja
+      colorFn: (nome, val) =>
+        nome === SUPRANET ? '#f97316' : val >= 0 ? '#22c55e' : '#ef4444',
+    },
+  )
+})
+
+const crescInfo = computed(() => {
+  const list = porEmpresa.value ?? []
+  const { periodos } = agrupaEmpresas(list)
+  if (periodos.length < 2) return null
+  return { de: periodos.at(-2)!, para: periodos.at(-1)! }
+})
+
+// ---------------------------------------------------------------------------
+// FEATURE 3 — Pressão competitiva (placar da cidade filtrada)
+// ---------------------------------------------------------------------------
+const pressao = computed(() => {
+  const list = porEmpresa.value ?? []
+  if (!list.length) return null
+
+  const { periodos, grupos } = agrupaEmpresas(list)
+  if (!periodos.length) return null
+  const last = periodos.at(-1)!
+  const prev = periodos.length >= 2 ? periodos.at(-2)! : null
+
+  // Fatia do último mês por empresa
+  const doMes = [...grupos.entries()]
+    .map(([nome, m]) => ({ nome, atual: m.get(last) ?? 0, anterior: prev ? (m.get(prev) ?? 0) : 0 }))
+    .filter((e) => e.atual > 0)
+
+  const totalMercado = doMes.reduce((s, e) => s + e.atual, 0)
+  const ranking = [...doMes].sort((a, b) => b.atual - a.atual)
+
+  const supra = doMes.find((e) => e.nome === SUPRANET)
+  const supraRank = supra ? ranking.findIndex((e) => e.nome === SUPRANET) + 1 : null
+  const supraShare = supra && totalMercado > 0 ? (supra.atual / totalMercado) * 100 : null
+
+  // Crescimento médio dos concorrentes (exclui Supranet, só quem tinha base)
+  const concorrentes = doMes.filter((e) => e.nome !== SUPRANET)
+  const comBase = concorrentes.filter((e) => e.anterior > 0)
+  const crescMedioConc = comBase.length
+    ? comBase.reduce((s, e) => s + ((e.atual - e.anterior) / e.anterior) * 100, 0) / comBase.length
+    : null
+  const supraCresc = supra && supra.anterior > 0
+    ? ((supra.atual - supra.anterior) / supra.anterior) * 100
+    : null
+
+  return {
+    mes: last,
+    numConcorrentes: concorrentes.length,
+    totalMercado,
+    supraShare,
+    supraRank,
+    supraAcessos: supra?.atual ?? 0,
+    crescMedioConc,
+    supraCresc,
+  }
+})
+
+// ---------------------------------------------------------------------------
+// FEATURE 5 — Segmento PF vs PJ por concorrente (último mês)
+// ---------------------------------------------------------------------------
+const { data: porSegmento, pending: pendingSegmento, error: errorSegmento } =
+  useAsyncData(
+    () => `porSegmento-${activeUf.value}-${activeMunicipio.value}-${activeAnoGte.value}`,
+    () => fetchAllPages<AcessoPorSegmento>(`/api/acessos/por-segmento/?${buildQuery()}`),
+    { lazy: true, server: false },
+  )
+
+const chartSegmento = computed(() => {
+  const list = porSegmento.value ?? []
+  if (!list.length) return buildStackedBar([], [], [])
+
+  // Último período disponível
+  let maxPeriodo = ''
+  for (const row of list) {
+    const p = periodoLabel(row.ano, row.mes)
+    if (p > maxPeriodo) maxPeriodo = p
+  }
+
+  // empresa -> { pf, pj }
+  const porEmpresaSeg = new Map<string, { pf: number; pj: number }>()
+  for (const row of list) {
+    if (periodoLabel(row.ano, row.mes) !== maxPeriodo) continue
+    const nome = row.empresa ?? '(sem nome)'
+    if (!porEmpresaSeg.has(nome)) porEmpresaSeg.set(nome, { pf: 0, pj: 0 })
+    const bucket = porEmpresaSeg.get(nome)!
+    if ((row.tipo_pessoa ?? '').toLowerCase().includes('jurídica')) bucket.pj += row.acessos
+    else bucket.pf += row.acessos
+  }
+
+  const ranked = [...porEmpresaSeg.entries()]
+    .map(([nome, v]) => ({ nome, ...v, total: v.pf + v.pj }))
+    .sort((a, b) => b.total - a.total)
+
+  const top = ranked.slice(0, 8)
+  if (!top.some((e) => e.nome === SUPRANET)) {
+    const s = ranked.find((e) => e.nome === SUPRANET)
+    if (s) { top.pop(); top.push(s) }
+  }
+
+  // Ordena crescente para o maior no topo (barra horizontal)
+  top.reverse()
+
+  return buildStackedBar(
+    top.map((e) => e.nome),
+    top.map((e) => e.pf),
+    top.map((e) => e.pj),
+  )
+})
+
+const segmentoInfo = computed(() => {
+  const list = porSegmento.value ?? []
+  let maxPeriodo = ''
+  for (const row of list) {
+    const p = periodoLabel(row.ano, row.mes)
+    if (p > maxPeriodo) maxPeriodo = p
+  }
+  return maxPeriodo || null
+})
+
+// ---------------------------------------------------------------------------
 // Cores fixas por empresa — Supranet sempre laranja
 // ---------------------------------------------------------------------------
 const COMPANY_COLORS: Record<string, string> = {
@@ -504,6 +797,115 @@ function buildLineChart(
         z: isSupra ? 10 : 1,
       }
     }),
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Barra horizontal simples com cor por valor (usado no crescimento mensal)
+// ---------------------------------------------------------------------------
+function buildBarChart(
+  categories: string[],
+  values: number[],
+  opts: { suffix?: string; integer?: boolean; colorFn?: (nome: string, val: number) => string },
+) {
+  const suffix = opts.suffix ?? ''
+  const fmt = (v: number) => {
+    const sign = v > 0 ? '+' : ''
+    const num = opts.integer ? Math.round(v).toLocaleString('pt-BR') : v
+    return `${sign}${num}${suffix}`
+  }
+  return {
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: { type: 'shadow' },
+      backgroundColor: 'rgba(15,23,42,0.92)',
+      borderColor: '#334155',
+      textStyle: { color: '#e2e8f0' },
+      formatter: (p: any[]) => `${p[0].name}: <b>${fmt(p[0].value)}</b>`,
+    },
+    grid: { left: 120, right: 70, top: 16, bottom: 24 },
+    xAxis: {
+      type: 'value',
+      axisLabel: {
+        color: '#64748b',
+        formatter: (v: number) => opts.integer ? formatMillions(v) : `${v}${suffix}`,
+      },
+      splitLine: { lineStyle: { color: '#1e293b' } },
+    },
+    yAxis: {
+      type: 'category',
+      data: categories,
+      axisLabel: { color: '#cbd5e1', fontSize: 12 },
+      axisLine: { lineStyle: { color: '#334155' } },
+    },
+    series: [{
+      type: 'bar',
+      data: values.map((v, i) => ({
+        value: v,
+        itemStyle: { color: opts.colorFn ? opts.colorFn(categories[i], v) : '#3b82f6', borderRadius: 3 },
+      })),
+      barMaxWidth: 22,
+      label: {
+        show: true,
+        position: 'right',
+        color: '#cbd5e1',
+        fontSize: 11,
+        formatter: (p: any) => fmt(p.value),
+      },
+    }],
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Barra horizontal empilhada PF vs PJ (usado no segmento)
+// ---------------------------------------------------------------------------
+function buildStackedBar(categories: string[], pf: number[], pj: number[]) {
+  return {
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: { type: 'shadow' },
+      backgroundColor: 'rgba(15,23,42,0.92)',
+      borderColor: '#334155',
+      textStyle: { color: '#e2e8f0' },
+    },
+    legend: {
+      data: ['Pessoa Física', 'Pessoa Jurídica'],
+      top: 4,
+      textStyle: { color: '#94a3b8' },
+    },
+    grid: { left: 120, right: 50, top: 40, bottom: 24 },
+    xAxis: {
+      type: 'value',
+      axisLabel: { color: '#64748b', formatter: (v: number) => formatMillions(v) },
+      splitLine: { lineStyle: { color: '#1e293b' } },
+    },
+    yAxis: {
+      type: 'category',
+      data: categories,
+      axisLabel: {
+        color: (val: string) => (val === 'Supranet' ? '#f97316' : '#cbd5e1'),
+        fontSize: 12,
+      },
+      axisLine: { lineStyle: { color: '#334155' } },
+    },
+    series: [
+      {
+        name: 'Pessoa Física',
+        type: 'bar',
+        stack: 'total',
+        data: pf,
+        itemStyle: { color: '#3b82f6' },
+        barMaxWidth: 22,
+      },
+      {
+        name: 'Pessoa Jurídica',
+        type: 'bar',
+        stack: 'total',
+        data: pj,
+        itemStyle: { color: '#f59e0b' },
+        barMaxWidth: 22,
+      },
+    ],
   }
 }
 </script>
