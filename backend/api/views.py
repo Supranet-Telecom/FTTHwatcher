@@ -29,10 +29,18 @@ class AcessoViewSet(viewsets.ReadOnlyModelViewSet):
             qs = qs.filter(uf__iexact=uf)
         if ibge := params.get("ibge"):
             qs = qs.filter(ibge=ibge)
+        if ibge_in := params.get("ibge__in"):
+            codes = [c.strip() for c in ibge_in.split(",") if c.strip()]
+            if codes:
+                qs = qs.filter(ibge__in=codes)
         if tecnologia := params.get("tecnologia"):
             qs = qs.filter(tecnologia__icontains=tecnologia)
         if grupo := params.get("grupo_economico"):
             qs = qs.filter(grupo_economico__icontains=grupo)
+        if municipio := params.get("municipio"):
+            qs = qs.filter(municipio__icontains=municipio)
+        if tipo_produto := params.get("tipo_produto"):
+            qs = qs.filter(tipo_produto__iexact=tipo_produto)
         return qs
 
     @action(detail=False, url_path="por-empresa")
@@ -40,11 +48,13 @@ class AcessoViewSet(viewsets.ReadOnlyModelViewSet):
         qs = self._apply_base_filters(Acesso.objects.all())
         data = (
             qs
-            .values("ano", "mes", "grupo_economico")
+            .values("ano", "mes", "empresa")
             .annotate(acessos=Sum("acessos"))
-            .order_by("ano", "mes", "grupo_economico")
+            .order_by("ano", "mes", "empresa")
         )
         page = self.paginate_queryset(data)
+        for row in page:
+            row["grupo_economico"] = row.pop("empresa")
         serializer = AcessosPorEmpresaSerializer(page, many=True)
         return self.get_paginated_response(serializer.data)
 

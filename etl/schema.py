@@ -36,13 +36,17 @@ CREATE TABLE IF NOT EXISTS acessos (
 -- Amplia velocidade_mbps se foi criada com a precisão antiga NUMERIC(12,6).
 ALTER TABLE acessos ALTER COLUMN velocidade_mbps TYPE NUMERIC(18,6);
 
--- COALESCE na expressão do índice trata NULLs para que todas as linhas participem.
+-- Chave natural completa: cada combinação de empresa+local+velocidade+tipo é única.
+-- faixa_velocidade removida pois velocidade_mbps é mais específica e a torna redundante.
+DROP INDEX IF EXISTS acessos_uq;
 CREATE UNIQUE INDEX IF NOT EXISTS acessos_uq ON acessos (
     ano, mes, cnpj,
     COALESCE(ibge, 0),
-    COALESCE(faixa_velocidade, ''),
+    COALESCE(velocidade_mbps::text, ''),
     COALESCE(tecnologia, ''),
-    COALESCE(meio_acesso, '')
+    COALESCE(meio_acesso, ''),
+    COALESCE(tipo_pessoa, ''),
+    COALESCE(tipo_produto, '')
 );
 
 CREATE TABLE IF NOT EXISTS totais (

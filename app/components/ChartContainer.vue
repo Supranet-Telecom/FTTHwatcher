@@ -8,7 +8,7 @@
     <span>Erro ao carregar dados da API.</span>
   </div>
 
-  <div v-else class="h-[420px] w-full">
+  <div v-else class="h-[500px] w-full">
     <slot />
   </div>
 </template>
