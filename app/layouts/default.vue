@@ -13,6 +13,18 @@
         orientation="vertical"
         class="px-2"
       />
+
+      <template #footer>
+        <UDropdownMenu :items="userMenu" class="w-full">
+          <UButton
+            color="neutral"
+            variant="ghost"
+            class="w-full justify-start"
+            icon="i-heroicons-user-circle"
+            :label="user?.username ?? 'Conta'"
+          />
+        </UDropdownMenu>
+      </template>
     </UDashboardSidebar>
 
     <slot />
@@ -20,13 +32,35 @@
 </template>
 
 <script setup lang="ts">
-const links = [
+const { user, isAdmin, logout } = useAuth()
+const router = useRouter()
+
+const links = computed(() => {
+  const base = [
+    { label: 'Dashboard', icon: 'i-heroicons-home', to: '/' },
+  ]
+  if (isAdmin.value) {
+    base.push({ label: 'Usuários', icon: 'i-heroicons-users', to: '/admin/users' })
+  }
+  return [base]
+})
+
+const userMenu = computed(() => [
+  [
+    { label: user.value?.username ?? '', type: 'label' as const },
+  ],
+  [
+    { label: 'Meu perfil', icon: 'i-heroicons-user', to: '/profile' },
+  ],
   [
     {
-      label: 'Dashboard',
-      icon: 'i-heroicons-home',
-      to: '/',
+      label: 'Sair',
+      icon: 'i-heroicons-arrow-right-on-rectangle',
+      onSelect: async () => {
+        await logout()
+        await router.push('/login')
+      },
     },
   ],
-]
+])
 </script>

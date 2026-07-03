@@ -155,22 +155,26 @@
           <div class="flex items-center justify-between gap-3 flex-wrap">
             <span class="font-semibold text-sm">Crescimento Mensal por Empresa</span>
             <div class="flex items-center gap-3">
-              <UButtonGroup size="xs">
+              <div class="flex rounded-md overflow-hidden ring ring-default">
                 <UButton
-                  :variant="crescMode === 'pct' ? 'solid' : 'outline'"
+                  size="xs"
+                  :variant="crescMode === 'pct' ? 'solid' : 'ghost'"
                   :color="crescMode === 'pct' ? 'primary' : 'neutral'"
+                  class="rounded-none"
                   @click="crescMode = 'pct'"
                 >
                   %
                 </UButton>
                 <UButton
-                  :variant="crescMode === 'abs' ? 'solid' : 'outline'"
+                  size="xs"
+                  :variant="crescMode === 'abs' ? 'solid' : 'ghost'"
                   :color="crescMode === 'abs' ? 'primary' : 'neutral'"
+                  class="rounded-none"
                   @click="crescMode = 'abs'"
                 >
                   Nº de acessos
                 </UButton>
-              </UButtonGroup>
+              </div>
               <UBadge v-if="crescInfo" color="neutral" variant="soft">
                 {{ crescInfo.de }} → {{ crescInfo.para }}
               </UBadge>
