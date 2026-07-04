@@ -4,6 +4,7 @@ from .views import AcessoViewSet, TotalViewSet, DensidadeViewSet
 from .auth_views import (
     CsrfView, LoginView, LogoutView, MeView, ChangePasswordView, UserViewSet,
 )
+from .reports_views import CityReportView
 
 router = DefaultRouter()
 router.register("acessos", AcessoViewSet, basename="acesso")
@@ -17,5 +18,6 @@ urlpatterns = [
     path("auth/logout/", LogoutView.as_view(), name="logout"),
     path("auth/me/", MeView.as_view(), name="me"),
     path("auth/change-password/", ChangePasswordView.as_view(), name="change-password"),
+    path("reports/cidade/", CityReportView.as_view(), name="city-report"),
     *router.urls,
 ]

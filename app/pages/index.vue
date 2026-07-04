@@ -1,7 +1,32 @@
 <template>
   <UDashboardPanel grow>
     <template #header>
-      <UDashboardNavbar title="Dashboard" />
+      <UDashboardNavbar title="Dashboard">
+        <template #right>
+          <UButton
+            icon="i-heroicons-document-text"
+            color="neutral"
+            variant="outline"
+            size="sm"
+            :loading="exporting === 'pdf'"
+            :disabled="!!exporting"
+            @click="exportReport('pdf')"
+          >
+            PDF
+          </UButton>
+          <UButton
+            icon="i-heroicons-table-cells"
+            color="neutral"
+            variant="outline"
+            size="sm"
+            :loading="exporting === 'xlsx'"
+            :disabled="!!exporting"
+            @click="exportReport('xlsx')"
+          >
+            Excel
+          </UButton>
+        </template>
+      </UDashboardNavbar>
     </template>
 
     <template #body>
@@ -73,7 +98,7 @@
           </div>
         </template>
         <ChartContainer :pending="pendingEmpresas" :error="errorEmpresas">
-          <EChart :option="chartPorEmpresa" />
+          <EChart ref="chartAcessosRef" :option="chartPorEmpresa" />
         </ChartContainer>
       </UCard>
 
@@ -86,7 +111,7 @@
           </div>
         </template>
         <ChartContainer :pending="pendingEmpresas" :error="errorEmpresas">
-          <EChart :option="chartParticipacao" />
+          <EChart ref="chartParticipacaoRef" :option="chartParticipacao" />
         </ChartContainer>
       </UCard>
 
@@ -182,7 +207,7 @@
           </div>
         </template>
         <ChartContainer :pending="pendingEmpresas" :error="errorEmpresas">
-          <EChart :option="chartCrescimento" />
+          <EChart ref="chartCrescimentoRef" :option="chartCrescimento" />
         </ChartContainer>
       </UCard>
 
@@ -195,7 +220,7 @@
           </div>
         </template>
         <ChartContainer :pending="pendingSegmento" :error="errorSegmento">
-          <EChart :option="chartSegmento" />
+          <EChart ref="chartSegmentoRef" :option="chartSegmento" />
         </ChartContainer>
       </UCard>
 
@@ -240,6 +265,7 @@ const SUPRANET = 'Supranet'
 // ---------------------------------------------------------------------------
 // Filtros — sincronizados com URL
 // ---------------------------------------------------------------------------
+const { $api } = useNuxtApp()
 const route  = useRoute()
 const router = useRouter()
 
@@ -672,6 +698,109 @@ const segmentoInfo = computed(() => {
   }
   return maxPeriodo || null
 })
+
+// ---------------------------------------------------------------------------
+// RELATÓRIOS — monta o payload (dados + imagens dos gráficos) e baixa PDF/Excel
+// ---------------------------------------------------------------------------
+const chartAcessosRef = ref<any>(null)
+const chartParticipacaoRef = ref<any>(null)
+const chartCrescimentoRef = ref<any>(null)
+const chartSegmentoRef = ref<any>(null)
+const exporting = ref<'pdf' | 'xlsx' | null>(null)
+
+// Ranking do último mês para a tabela do relatório (top 10 + Supranet)
+const rankingReport = computed(() => {
+  const list = porEmpresa.value ?? []
+  const { periodos, grupos } = agrupaEmpresas(list)
+  if (!periodos.length) return []
+  const last = periodos.at(-1)!
+  const prev = periodos.length >= 2 ? periodos.at(-2)! : null
+
+  const rows = [...grupos.entries()]
+    .map(([nome, m]) => ({ nome, acessos: m.get(last) ?? 0, anterior: prev ? (m.get(prev) ?? 0) : 0 }))
+    .filter((r) => r.acessos > 0)
+  const total = rows.reduce((s, r) => s + r.acessos, 0)
+  rows.sort((a, b) => b.acessos - a.acessos)
+
+  const top = rows.slice(0, 10)
+  if (!top.some((r) => r.nome === SUPRANET)) {
+    const s = rows.find((r) => r.nome === SUPRANET)
+    if (s) { top.pop(); top.push(s) }
+  }
+  return top.map((r) => ({
+    nome: r.nome,
+    acessos: r.acessos,
+    share: total > 0 ? Math.round((r.acessos / total) * 1000) / 10 : 0,
+    crescimento: r.anterior > 0 ? Math.round(((r.acessos - r.anterior) / r.anterior) * 1000) / 10 : null,
+  }))
+})
+
+const segmentoReport = computed(() => {
+  const list = porSegmento.value ?? []
+  let maxP = ''
+  for (const row of list) { const p = periodoLabel(row.ano, row.mes); if (p > maxP) maxP = p }
+  const m = new Map<string, { pf: number; pj: number }>()
+  for (const row of list) {
+    if (periodoLabel(row.ano, row.mes) !== maxP) continue
+    const nome = row.empresa ?? '(sem nome)'
+    if (!m.has(nome)) m.set(nome, { pf: 0, pj: 0 })
+    const b = m.get(nome)!
+    if ((row.tipo_pessoa ?? '').toLowerCase().includes('jurídica')) b.pj += row.acessos
+    else b.pf += row.acessos
+  }
+  return [...m.entries()]
+    .map(([nome, v]) => ({ nome, pf: v.pf, pj: v.pj, total: v.pf + v.pj }))
+    .sort((a, b) => b.total - a.total)
+    .slice(0, 10)
+})
+
+function buildReportPayload() {
+  const p = pressao.value
+  return {
+    cidade: activeMunicipio.value || activeUf.value || 'Brasil',
+    uf: activeUf.value,
+    periodo: p?.mes ?? '',
+    kpis: p ? {
+      total_mercado: p.totalMercado,
+      supra_acessos: p.supraAcessos,
+      supra_share: p.supraShare,
+      supra_rank: p.supraRank,
+      num_concorrentes: p.numConcorrentes,
+      cresc_medio_conc: p.crescMedioConc,
+      supra_cresc: p.supraCresc,
+    } : {},
+    ranking: rankingReport.value,
+    segmento: segmentoReport.value,
+    charts: {
+      acessos: chartAcessosRef.value?.getPng?.() ?? '',
+      participacao: chartParticipacaoRef.value?.getPng?.() ?? '',
+      crescimento: chartCrescimentoRef.value?.getPng?.() ?? '',
+      segmento: chartSegmentoRef.value?.getPng?.() ?? '',
+    },
+  }
+}
+
+async function exportReport(tipo: 'pdf' | 'xlsx') {
+  exporting.value = tipo
+  try {
+    const blob = await $api<Blob>(`/api/reports/cidade/?tipo=${tipo}`, {
+      method: 'POST',
+      body: buildReportPayload(),
+      responseType: 'blob',
+    })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    const cidade = (activeMunicipio.value || activeUf.value || 'brasil').toLowerCase().replace(/\s+/g, '_')
+    a.href = url
+    a.download = `panorama_${cidade}.${tipo}`
+    a.click()
+    URL.revokeObjectURL(url)
+  } catch (e) {
+    console.error('Falha ao exportar relatório', e)
+  } finally {
+    exporting.value = null
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Cores fixas por empresa — Supranet sempre laranja

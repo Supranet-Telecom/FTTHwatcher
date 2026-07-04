@@ -67,4 +67,15 @@ onBeforeUnmount(() => {
   ro?.disconnect()
   chart?.dispose()
 })
+
+/**
+ * Exporta o gráfico como PNG (data URL). Fundo escuro para combinar com o tema.
+ * Usado na geração de relatórios.
+ */
+function getPng(): string | null {
+  if (!chart) return null
+  return chart.getDataURL({ type: 'png', pixelRatio: 2, backgroundColor: '#0f172a' })
+}
+
+defineExpose({ getPng })
 </script>
